@@ -22,7 +22,7 @@ npm run build
 
 - [x] Fondasi proyek dan design system pastel dengan Poppins.
 - [x] Webcam dan Hand Landmarker.
-- [ ] Kalibrasi dan penghitung siklus beserta unit test.
+- [x] Modul kalibrasi dan penghitung siklus beserta 16 unit test.
 - [ ] Solo, timer, dan hasil.
 - [ ] Adu Temen dan rekor lokal.
 - [ ] Debug, penanganan error, dan verifikasi akhir.
@@ -46,3 +46,17 @@ Dokumentasi API: [MediaPipe Hand Landmarker](https://developers.google.com/edge/
 Tahap ini belum menghitung skor atau memulai ronde. Validasi gerakan berikutnya akan memakai data sintetis dan webcam nyata secara terpisah.
 
 Browser check memakai Playwright dengan Edge yang terpasang (`npm run test:e2e`). Test kamera menggunakan perangkat video sintetis browser, bukan webcam nyata. Screenshot hasil pemeriksaan disimpan di `.local/` (tidak di-commit).
+
+## Logika gerakan
+
+Modul `src/motion/` terpisah dari React. `HandIdentity` mengubah koordinat ke sisi layar yang dicerminkan, memakai pusat telapak landmark 0/5/9/13/17, dan mencocokkan posisi antarframe. Jarak horizontal dan vertikal memakai unit tinggi video yang sama agar rasio aspek tidak mengubah ukuran telapak. Tangan bersilangan, tumpang-tindih, atau tracking meloncat dianggap ambigu dan memutus kontinuitas.
+
+`CycleCounter` memakai smoothing berbasis waktu, selisih tinggi dibagi rata-rata ukuran telapak saat ini, zona netral, hysteresis, durasi stabil minimum, dan minimum waktu perpindahan. Posisi awal belum menghasilkan poin. A → B → A atau B → A → B menghasilkan satu poin; posisi terakhir menjadi awal siklus berikutnya. Tracking hilang atau jeda frame panjang membatalkan siklus parsial, tanpa menghapus poin sebelumnya. Di luar ronde aktif gerakan tidak dihitung.
+
+`Calibration` meminta tangan sejajar stabil selama 1,2 detik, lalu kiri layar lebih tinggi dan kanan layar lebih tinggi. Ukuran telapak dicatat dan rentang kedua arah menentukan threshold awal. Threshold dikunci untuk satu ronde. Semua parameter ada di `src/motion/config.ts`.
+
+```sh
+npm test
+```
+
+Test sintetis memverifikasi diam, jitter, kedua arah siklus penuh, rangkaian siklus, tracking hilang, urutan array berubah, spike singkat, neutral, dan gerakan di luar ronde. Ini belum membuktikan akurasi webcam nyata.
