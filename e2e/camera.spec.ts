@@ -27,7 +27,7 @@ test('denied camera permission has a useful retry and exit', async ({ page }) =>
   await expect(page.getByText(/Izin kamera belum dikasih/)).toBeVisible();
   await page.getByRole('button', { name: 'Coba lagi' }).click();
   await expect(page.getByText(/Izin kamera belum dikasih/)).toBeVisible();
-  await page.getByRole('button', { name: 'Kembali', exact: true }).click();
+  await page.getByRole('button', { name: 'Keluar', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Aktifkan Kamera' })).toBeVisible();
 });
 
@@ -51,7 +51,8 @@ test('real model initializes on a synthetic camera and exit stops camera tracks'
   await page.getByRole('button', { name: 'Debug', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Tracking debug' })).toBeVisible();
   await page.screenshot({ path: '.local/camera-desktop.png', fullPage: true });
-  await page.getByRole('button', { name: 'Kembali', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Mulai nge-67' })).toBeDisabled();
+  await page.getByRole('button', { name: 'Keluar', exact: true }).click();
   await expect.poll(() => page.evaluate(() => (window as unknown as { testTracks: MediaStreamTrack[] }).testTracks.every(track => track.readyState === 'ended'))).toBe(true);
   expect(errors).toEqual([]);
 });

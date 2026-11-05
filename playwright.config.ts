@@ -9,7 +9,7 @@ export default defineConfig({
   use: {
     baseURL: 'http://127.0.0.1:5173',
     viewport: { width: 1365, height: 900 },
-    channel: 'msedge',
+    channel: 'chromium',
     launchOptions: { args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] },
     screenshot: 'only-on-failure',
   },

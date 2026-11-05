@@ -23,7 +23,7 @@ npm run build
 - [x] Fondasi proyek dan design system pastel dengan Poppins.
 - [x] Webcam dan Hand Landmarker.
 - [x] Modul kalibrasi dan penghitung siklus beserta 16 unit test.
-- [ ] Solo, timer, dan hasil.
+- [x] Solo, timer, dan hasil.
 - [ ] Adu Temen dan rekor lokal.
 - [ ] Debug, penanganan error, dan verifikasi akhir.
 
@@ -43,7 +43,7 @@ Model dan WASM tidak dimasukkan ke Git; aset dibuat di `public/vision/` dan ikut
 
 Dokumentasi API: [MediaPipe Hand Landmarker](https://developers.google.com/edge/mediapipe/solutions/vision/hand_landmarker?tab=Web), [Vite](https://vite.dev/guide/).
 
-Tahap ini belum menghitung skor atau memulai ronde. Validasi gerakan berikutnya akan memakai data sintetis dan webcam nyata secara terpisah.
+Kalibrasi, countdown 3–2–1, ronde solo 30 detik, dan hasil sudah terhubung ke tracking. Tombol mulai hanya aktif ketika model, dua tangan, dan kalibrasi siap. Gerakan di luar ronde tidak dihitung. Timer tetap berjalan jika tracking hilang. Tab tidak aktif membatalkan ronde dan menawarkan ulang; ronde batal tidak boleh dicatat sebagai hasil.
 
 Browser check memakai Playwright dengan Edge yang terpasang (`npm run test:e2e`). Test kamera menggunakan perangkat video sintetis browser, bukan webcam nyata. Screenshot hasil pemeriksaan disimpan di `.local/` (tidak di-commit).
 
