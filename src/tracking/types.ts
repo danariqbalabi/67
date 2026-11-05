@@ -1,4 +1,8 @@
-export interface Landmark { x: number; y: number; z: number }
+export interface Landmark {
+  x: number;
+  y: number;
+  z: number;
+}
 
 export interface HandDetection {
   landmarks: Landmark[];
