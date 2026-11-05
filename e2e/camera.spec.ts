@@ -10,6 +10,7 @@ test('homepage waits for an explicit camera action and works on mobile width', a
   await expect(page.locator('video')).toHaveCount(0);
   await page.getByRole('button', { name: 'Adu Temen', exact: true }).click();
   await expect(page.getByText('Satu kamera, dua pemain. Mainnya gantian.')).toBeVisible();
+  await page.getByRole('button', { name: 'Solo', exact: true }).click();
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByRole('button', { name: 'Aktifkan Kamera' })).toBeInViewport();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
@@ -24,9 +25,9 @@ test('denied camera permission has a useful retry and exit', async ({ page }) =>
   });
   await page.goto('/');
   await page.getByRole('button', { name: 'Aktifkan Kamera' }).click();
-  await expect(page.getByText(/Izin kamera belum dikasih/)).toBeVisible();
+  await expect(page.locator('.camera-cover').getByText(/Izin kamera belum dikasih/)).toBeVisible();
   await page.getByRole('button', { name: 'Coba lagi' }).click();
-  await expect(page.getByText(/Izin kamera belum dikasih/)).toBeVisible();
+  await expect(page.locator('.camera-cover').getByText(/Izin kamera belum dikasih/)).toBeVisible();
   await page.getByRole('button', { name: 'Keluar', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Aktifkan Kamera' })).toBeVisible();
 });

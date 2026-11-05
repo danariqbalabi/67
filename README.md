@@ -24,7 +24,7 @@ npm run build
 - [x] Webcam dan Hand Landmarker.
 - [x] Modul kalibrasi dan penghitung siklus beserta 16 unit test.
 - [x] Solo, timer, dan hasil.
-- [ ] Adu Temen dan rekor lokal.
+- [x] Adu Temen dan rekor lokal.
 - [ ] Debug, penanganan error, dan verifikasi akhir.
 
 Tidak ada backend atau akun. Video tidak diunggah atau disimpan.
@@ -45,7 +45,15 @@ Dokumentasi API: [MediaPipe Hand Landmarker](https://developers.google.com/edge/
 
 Kalibrasi, countdown 3–2–1, ronde solo 30 detik, dan hasil sudah terhubung ke tracking. Tombol mulai hanya aktif ketika model, dua tangan, dan kalibrasi siap. Gerakan di luar ronde tidak dihitung. Timer tetap berjalan jika tracking hilang. Tab tidak aktif membatalkan ronde dan menawarkan ulang; ronde batal tidak boleh dicatat sebagai hasil.
 
-Browser check memakai Playwright dengan Edge yang terpasang (`npm run test:e2e`). Test kamera menggunakan perangkat video sintetis browser, bukan webcam nyata. Screenshot hasil pemeriksaan disimpan di `.local/` (tidak di-commit).
+Browser check memakai Playwright Chromium (`npm run test:e2e`). Instal browser test dengan `npx playwright install chromium` jika belum ada. Test kamera menggunakan perangkat video sintetis browser, bukan webcam nyata. Test gameplay memakai landmark sintetis melalui mock module khusus browser test, yang tidak tersedia dalam aplikasi produksi. Screenshot hasil pemeriksaan disimpan di `.local/` (tidak di-commit).
+
+## Solo dan Adu Temen
+
+Solo menyimpan rekor pribadi di localStorage. Hanya ronde 30 detik yang selesai yang dicatat; ronde batal tidak dicatat. Jika penyimpanan browser ditolak, permainan tetap bisa berjalan dan hasil ditampilkan untuk sesi saat ini.
+
+Adu Temen meminta dua nama (maksimum 24 karakter). Pemain pertama menyelesaikan ronde, lalu layar pergantian meminta pemain kedua klik **Siap**. Pemain kedua melakukan kalibrasi baru dengan algoritma, batas parameter, dan durasi yang sama. Hasil menampilkan skor, pemenang atau seri, dan rematch. Tidak ada pengaturan sensitivitas manual di tengah pertandingan. Skor Adu Temen tidak mengubah rekor solo.
+
+Audio singkat baru diaktifkan setelah klik tombol mulai atau suara. Tombol mute tersimpan sebagai preferensi browser. Animasi skor, countdown, dan confetti menghormati `prefers-reduced-motion`.
 
 ## Logika gerakan
 

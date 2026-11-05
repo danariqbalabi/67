@@ -28,11 +28,12 @@ export function useCamera(onFrame?: (frame: TrackingFrame) => void) {
     function stop() {
       cancelAnimationFrame(animation);
       removeTrackListener?.();
+      const ownedStream = stream;
       stream?.getTracks().forEach(track => track.stop());
       stream = undefined;
       model?.close();
       model = undefined;
-      video.srcObject = null;
+      if (ownedStream && video.srcObject === ownedStream) video.srcObject = null;
       canvas.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
     }
     function fail(message: string) {
