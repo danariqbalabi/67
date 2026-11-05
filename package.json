@@ -1,0 +1,32 @@
+{
+    "name":  "67-battle",
+    "private":  true,
+    "version":  "0.1.0",
+    "type":  "module",
+    "engines":  {
+                    "node":  "\u003e=22.12.0"
+                },
+    "scripts":  {
+                    "dev":  "vite --host 127.0.0.1",
+                    "typecheck":  "tsc --noEmit",
+                    "build":  "tsc --noEmit \u0026\u0026 vite build",
+                    "preview":  "vite preview --host 127.0.0.1",
+                    "test":  "vitest run"
+                },
+    "dependencies":  {
+                         "@fontsource/poppins":  null,
+                         "@mediapipe/tasks-vision":  null,
+                         "lucide-react":  null,
+                         "react":  null,
+                         "react-dom":  null
+                     },
+    "devDependencies":  {
+                            "@types/node":  null,
+                            "@types/react":  null,
+                            "@types/react-dom":  null,
+                            "@vitejs/plugin-react":  null,
+                            "typescript":  null,
+                            "vite":  null,
+                            "vitest":  null
+                        }
+}
