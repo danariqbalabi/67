@@ -31,6 +31,21 @@ function harness() {
 }
 
 describe('complete alternating motion cycles', () => {
+  it('counts fast continuous cycles at 30 and 60 FPS', () => {
+    for (const period of [300, 400]) {
+      for (const fps of [20, 24, 30, 60]) {
+        const counter = new CycleCounter(0.8);
+        for (let time = 0; time < period * 5.5; time += 1000 / fps) {
+          counter.update(
+            time,
+            pair(1.5 * Math.sin((2 * Math.PI * time) / period)),
+            true,
+          );
+        }
+        expect(counter.snapshot().score).toBe(5);
+      }
+    }
+  });
   it('counts smooth up-and-down motion without requiring a pause at each peak', () => {
     for (const threshold of [0.65, 0.8]) {
       for (const period of [500, 600]) {

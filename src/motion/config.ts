@@ -1,9 +1,9 @@
 export const MOTION_CONFIG = Object.freeze({
-  smoothingMs: 45,
+  smoothingMs: 30,
   enterThreshold: 0.65,
   exitRatio: 0.58,
-  stableMs: 60,
-  minTransitionMs: 180,
+  stableMs: 40,
+  minTransitionMs: 100,
   maxFrameGapMs: 300,
   maxIdentityJump: 0.35,
   identityAmbiguity: 0.002,

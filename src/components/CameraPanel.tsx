@@ -5,6 +5,8 @@ import {
   Check,
   Flag,
   LoaderCircle,
+  Maximize2,
+  Minimize2,
   Play,
   RefreshCw,
   ScanLine,
@@ -30,6 +32,9 @@ export function CameraPanel({ mode, names, onExit }: Props) {
   const round = useRound();
   const { videoRef, canvasRef, status, retry } = useCamera(round.onFrame);
   const [debug, setDebug] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const expandButtonRef = useRef<HTMLButtonElement>(null);
+  const stageRef = useRef<HTMLElement>(null);
   const [player, setPlayer] = useState(0);
   const [firstScore, setFirstScore] = useState(0);
   const [best, setBest] = useState(readBest);
@@ -40,6 +45,37 @@ export function CameraPanel({ mode, names, onExit }: Props) {
   const { phase } = round.clock;
   const live = phase === 'playing' || phase === 'countdown';
   const complete = phase === 'finished' || phase === 'cancelled';
+  useEffect(() => {
+    if (!expanded) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setExpanded(false);
+      if (event.key === 'Tab') {
+        const controls = [
+          ...stageRef.current!.querySelectorAll<HTMLButtonElement>(
+            'button:not(:disabled)',
+          ),
+        ].filter((button) => button.offsetParent !== null);
+        if (!controls.length) return;
+        const first = controls[0],
+          last = controls[controls.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
+    };
+    document.addEventListener('keydown', escape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', escape);
+      expandButtonRef.current?.focus();
+    };
+  }, [expanded]);
   useEffect(() => {
     if (complete) resultRef.current?.focus();
   }, [complete]);
@@ -74,6 +110,11 @@ export function CameraPanel({ mode, names, onExit }: Props) {
     setPlayer(0);
     setFirstScore(0);
     restart();
+  };
+  const handleStart = () => {
+    if (round.startRequested) round.cancelStart();
+    else round.start();
+    audio.unlock();
   };
   useEffect(() => {
     if (status.phase === 'error')
@@ -155,10 +196,18 @@ export function CameraPanel({ mode, names, onExit }: Props) {
       </div>
       <div className="session-grid">
         <section
-          className="camera-stage"
+          ref={stageRef}
+          className={`camera-stage${expanded ? ' camera-expanded' : ''}`}
           aria-label="Preview kamera seperti cermin"
         >
-          <div className="video-viewport">
+          <div
+            className="video-viewport"
+            style={{
+              aspectRatio: expanded
+                ? 'auto'
+                : `${status.width || 4} / ${status.height || 3}`,
+            }}
+          >
             <video
               ref={videoRef}
               muted
@@ -227,6 +276,17 @@ export function CameraPanel({ mode, names, onExit }: Props) {
                   {phase === 'playing'
                     ? 'Ronde aktif · siklus lengkap = +1'
                     : 'Persiapan · skor belum dihitung'}
+                </span>
+              </div>
+            )}
+            {expanded && live && (
+              <div
+                className="expanded-score numeric"
+                aria-label="Skor dan waktu"
+              >
+                <strong>{round.motion.score}</strong>
+                <span>
+                  siklus · {Math.ceil(round.clock.remainingMs / 1000)} detik
                 </span>
               </div>
             )}
@@ -345,6 +405,35 @@ export function CameraPanel({ mode, names, onExit }: Props) {
                 : 'Preview lu muncul di sini.'}
             </span>
             <span className="mirror-label">Mode cermin</span>
+            {expanded && phase === 'preparing' && (
+              <button
+                className="primary-button expanded-start"
+                disabled={status.phase !== 'ready'}
+                onClick={handleStart}
+              >
+                {round.startRequested ? 'Batal mulai otomatis' : 'Mulai nge-67'}
+              </button>
+            )}
+            {expanded && live && (
+              <button
+                className="secondary-button"
+                onClick={() =>
+                  round.cancel('Ronde dihentikan. Skor tidak dicatat.')
+                }
+              >
+                <Flag size={15} />
+                Hentikan ronde
+              </button>
+            )}
+            <button
+              ref={expandButtonRef}
+              className="secondary-button expand-camera"
+              aria-pressed={expanded}
+              onClick={() => setExpanded((value) => !value)}
+            >
+              {expanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+              {expanded ? 'Kecilkan kamera' : 'Perbesar kamera'}
+            </button>
           </div>
         </section>
         <aside className="setup-aside">
@@ -466,11 +555,7 @@ export function CameraPanel({ mode, names, onExit }: Props) {
               <button
                 className="primary-button"
                 disabled={status.phase !== 'ready' || phase !== 'preparing'}
-                onClick={() => {
-                  if (round.startRequested) round.cancelStart();
-                  else round.start();
-                  audio.unlock();
-                }}
+                onClick={handleStart}
               >
                 <Play size={17} />
                 {round.startRequested ? 'Batal mulai otomatis' : 'Mulai nge-67'}
@@ -481,6 +566,10 @@ export function CameraPanel({ mode, names, onExit }: Props) {
                   setelah dua tangan dan kalibrasi siap.
                 </p>
               )}
+              <p className="start-help">
+                Boleh gerak di seluruh gambar kamera, bukan cuma di dalam garis.
+                Kalau tangan sering blur, tambah cahaya dan beri sedikit jarak.
+              </p>
               {phase === 'preparing' && round.calibration.stage === 'ready' && (
                 <button className="text-button" onClick={restart}>
                   Kalibrasi ulang
@@ -507,6 +596,18 @@ export function CameraPanel({ mode, names, onExit }: Props) {
         <section className="debug-panel">
           <h2>Tracking debug</h2>
           <dl>
+            <div>
+              <dt>Resolusi kamera</dt>
+              <dd>
+                {status.width} × {status.height}
+              </dd>
+            </div>
+            <div>
+              <dt>FPS kamera</dt>
+              <dd>
+                {status.cameraFps > 0 ? status.cameraFps.toFixed(1) : '—'}
+              </dd>
+            </div>
             <div>
               <dt>Inference FPS</dt>
               <dd>{status.fps.toFixed(1)}</dd>

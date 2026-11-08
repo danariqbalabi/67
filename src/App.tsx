@@ -14,7 +14,7 @@ export default function App() {
   const [cameraActive, setCameraActive] = useState(false);
   const [names, setNames] = useState<[string, string]>(['', '']);
   return (
-    <div className="app-shell">
+    <div className={`app-shell${cameraActive ? ' camera-session' : ''}`}>
       <header className="site-header">
         <a href="/" className="brand">
           <span className="brand-mark">67</span> Battle

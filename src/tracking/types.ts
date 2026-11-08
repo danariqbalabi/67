@@ -26,4 +26,7 @@ export interface CameraStatus {
   fps: number;
   handednessScores: number[];
   delegate: 'GPU' | 'CPU' | null;
+  width: number;
+  height: number;
+  cameraFps: number;
 }

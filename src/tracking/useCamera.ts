@@ -11,6 +11,9 @@ const initialStatus: CameraStatus = {
   fps: 0,
   handednessScores: [],
   delegate: null,
+  width: 0,
+  height: 0,
+  cameraFps: 0,
 };
 
 export function useCamera(onFrame?: (frame: TrackingFrame) => void) {
@@ -28,19 +31,21 @@ export function useCamera(onFrame?: (frame: TrackingFrame) => void) {
     let stream: MediaStream | undefined;
     let model: HandLandmarker | undefined;
     let animation = 0;
+    let videoCallback: number | null = null;
     const video = videoRef.current!;
     const canvas = canvasRef.current!;
     let lastVideoTime = -1,
-      lastInference = -Infinity,
       lastUi = 0,
       sampleStart = 0,
       sampleCount = 0,
       fps = 0;
     let delegate: 'GPU' | 'CPU' = 'GPU';
+    let cameraFps = 0;
     let removeTrackListener: (() => void) | undefined;
 
     function stop() {
       cancelAnimationFrame(animation);
+      if (videoCallback !== null) video.cancelVideoFrameCallback(videoCallback);
       removeTrackListener?.();
       const ownedStream = stream;
       stream?.getTracks().forEach((track) => track.stop());
@@ -71,14 +76,18 @@ export function useCamera(onFrame?: (frame: TrackingFrame) => void) {
         return;
       }
       try {
+        // resizeMode is supported by Chromium but not yet included in every DOM type library.
+        const videoConstraints: MediaTrackConstraints & { resizeMode: string } =
+          {
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+            facingMode: 'user',
+            frameRate: { ideal: 60, max: 60 },
+            resizeMode: 'none',
+          };
         stream = await navigator.mediaDevices.getUserMedia({
           audio: false,
-          video: {
-            width: { ideal: 960 },
-            height: { ideal: 720 },
-            facingMode: 'user',
-            frameRate: { ideal: 30, max: 30 },
-          },
+          video: videoConstraints,
         });
         if (disposed) {
           stop();
@@ -91,6 +100,7 @@ export function useCamera(onFrame?: (frame: TrackingFrame) => void) {
           return;
         }
         const track = stream.getVideoTracks()[0];
+        cameraFps = track.getSettings().frameRate ?? 0;
         const ended = () =>
           fail('Kamera terputus. Sambungkan lagi, lalu coba ulang.');
         track.addEventListener('ended', ended);
@@ -125,9 +135,9 @@ export function useCamera(onFrame?: (frame: TrackingFrame) => void) {
             },
             runningMode: 'VIDEO',
             numHands: 2,
-            minHandDetectionConfidence: 0.6,
-            minHandPresenceConfidence: 0.6,
-            minTrackingConfidence: 0.6,
+            minHandDetectionConfidence: 0.5,
+            minHandPresenceConfidence: 0.5,
+            minTrackingConfidence: 0.5,
           });
         try {
           model = await create('GPU');
@@ -155,19 +165,31 @@ export function useCamera(onFrame?: (frame: TrackingFrame) => void) {
         phase: 'ready',
         message: 'Tunjukin dua tangan lu.',
         delegate,
+        width: video.videoWidth,
+        height: video.videoHeight,
+        cameraFps,
       });
-      function loop(timestamp: number) {
+      function schedule() {
         if (disposed || !model) return;
+        if (typeof video.requestVideoFrameCallback === 'function') {
+          videoCallback = video.requestVideoFrameCallback(() => {
+            videoCallback = null;
+            loop();
+          });
+        } else animation = requestAnimationFrame(loop);
+      }
+      function loop() {
+        if (disposed || !model) return;
+        const timestamp = performance.now();
         try {
-          // Synchronous inference: one call at a time, on new video frames only, capped at 24 Hz.
+          // Follow decoded camera frames, with one synchronous inference in flight.
+          // Never discard a new frame solely because of an artificial FPS cap.
           if (
             !document.hidden &&
             video.readyState >= 2 &&
-            video.currentTime !== lastVideoTime &&
-            timestamp - lastInference >= 1000 / 24
+            video.currentTime !== lastVideoTime
           ) {
             lastVideoTime = video.currentTime;
-            lastInference = timestamp;
             const result = model.detectForVideo(video, timestamp);
             const hands = result.landmarks.map((landmarks, i) => ({
               landmarks,
@@ -201,17 +223,20 @@ export function useCamera(onFrame?: (frame: TrackingFrame) => void) {
                 fps,
                 handednessScores: hands.map((hand) => hand.handednessScore),
                 delegate,
+                width: video.videoWidth,
+                height: video.videoHeight,
+                cameraFps,
               });
             }
           }
-          animation = requestAnimationFrame(loop);
+          schedule();
         } catch {
           fail(
             'Tracking berhenti. Coba ulang kamera. Kalau masih gagal, pakai browser lain.',
           );
         }
       }
-      animation = requestAnimationFrame(loop);
+      schedule();
     }
     void start();
     return () => {
