@@ -1,74 +1,22 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Calibration, type CalibrationSnapshot } from '../motion/calibration';
-import { CycleCounter, type CounterSnapshot } from '../motion/counter';
-import { HandIdentity } from '../motion/identity';
-import { MOTION_CONFIG } from '../motion/config';
 import type { TrackingFrame } from '../tracking/types';
-import { RoundClock, type ClockSnapshot } from './clock';
-
-function createRuntime() {
-  return {
-    identity: new HandIdentity(),
-    calibration: new Calibration(),
-    counter: new CycleCounter(),
-    clock: new RoundClock(),
-    lastPairAt: -Infinity,
-    lastPublish: -Infinity,
-    pairReady: false,
-  };
-}
-interface RoundView {
-  clock: ClockSnapshot;
-  calibration: CalibrationSnapshot;
-  motion: CounterSnapshot;
-  canStart: boolean;
-}
-function view(
-  runtime: ReturnType<typeof createRuntime>,
-  now: number,
-): RoundView {
-  return {
-    clock: runtime.clock.tick(now),
-    calibration: runtime.calibration.snapshot(),
-    motion: runtime.counter.snapshot(),
-    canStart:
-      runtime.calibration.snapshot().stage === 'ready' &&
-      runtime.pairReady &&
-      now - runtime.lastPairAt < MOTION_CONFIG.maxFrameGapMs,
-  };
-}
+import { RoundSession } from './session';
 
 export function useRound() {
-  const runtime = useRef(createRuntime());
+  const session = useRef(new RoundSession());
+  const lastPublish = useRef(-Infinity);
   const [state, setState] = useState(() =>
-    view(runtime.current, performance.now()),
+    session.current.snapshot(performance.now()),
   );
-  const reasonRef = useRef('');
   const publish = useCallback((now: number, force = false) => {
-    const r = runtime.current;
-    if (force || now - r.lastPublish >= 100) {
-      r.lastPublish = now;
-      const next = view(r, now);
-      next.motion.reason = reasonRef.current;
-      setState(next);
+    if (force || now - lastPublish.current >= 100) {
+      lastPublish.current = now;
+      setState(session.current.snapshot(now));
     }
   }, []);
   const onFrame = useCallback(
     (frame: TrackingFrame) => {
-      const r = runtime.current;
-      const { pair, reason } = r.identity.update(frame);
-      r.pairReady = Boolean(pair);
-      if (pair) r.lastPairAt = frame.timestamp;
-      const clock = r.clock.tick(frame.timestamp);
-      if (clock.phase === 'preparing')
-        r.calibration.update(frame.timestamp, pair);
-      const result = r.counter.update(
-        frame.timestamp,
-        pair,
-        clock.phase === 'playing',
-        reason,
-      );
-      reasonRef.current = reason || result.reason;
+      session.current.update(frame);
       publish(frame.timestamp);
     },
     [publish],
@@ -81,10 +29,9 @@ export function useRound() {
     };
     const visibility = () => {
       if (document.hidden) {
-        runtime.current.clock.cancel(
+        session.current.cancel(
           'Tab jadi tidak aktif. Ronde dibatalkan biar adil.',
         );
-        runtime.current.counter.resetPartial();
         publish(performance.now(), true);
       }
     };
@@ -96,31 +43,25 @@ export function useRound() {
     };
   }, [publish]);
   const start = useCallback(() => {
-    const now = performance.now(),
-      r = runtime.current;
-    if (
-      document.hidden ||
-      r.clock.tick(now).phase !== 'preparing' ||
-      !view(r, now).canStart
-    )
-      return;
-    r.counter = new CycleCounter(r.calibration.snapshot().threshold);
-    r.clock.start(now);
-    reasonRef.current = '';
+    if (document.hidden) return;
+    const now = performance.now();
+    session.current.requestStart(now);
     publish(now, true);
   }, [publish]);
+  const cancelStart = useCallback(() => {
+    session.current.cancelStart();
+    publish(performance.now(), true);
+  }, [publish]);
   const reset = useCallback(() => {
-    runtime.current = createRuntime();
-    reasonRef.current = '';
+    session.current = new RoundSession();
     publish(performance.now(), true);
   }, [publish]);
   const cancel = useCallback(
     (reason: string) => {
-      runtime.current.clock.cancel(reason);
-      runtime.current.counter.resetPartial();
+      session.current.cancel(reason);
       publish(performance.now(), true);
     },
     [publish],
   );
-  return { ...state, onFrame, start, reset, cancel };
+  return { ...state, onFrame, start, cancelStart, reset, cancel };
 }

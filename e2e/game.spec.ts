@@ -5,9 +5,9 @@ const fakeVision = `
 export const FilesetResolver = { forVisionTasks: async () => ({}) };
 export const HandLandmarker = { createFromOptions: async () => {
   window.__modelLoads = (window.__modelLoads || 0) + 1;
-  return { close() {}, detectForVideo() {
+  return { close() {}, detectForVideo(_video, timestamp) {
     if (window.__noHands) return { landmarks: [], handedness: [] };
-    const delta = window.__delta || 0;
+    const delta = window.__waveStart == null ? window.__delta || 0 : timestamp < window.__waveStart + 3300 ? 1.1 * Math.sin(2 * Math.PI * (timestamp - window.__waveStart) / 600) : 0;
     const hand = (x, y) => Array.from({ length: 21 }, (_, i) => ({ x, y: y + (i === 0 ? .08 : 0), z: 0 }));
     return { landmarks: [hand(.8, .5 - delta * .04), hand(.2, .5 + delta * .04)], handedness: [[{categoryName:'Right',score:.99}], [{categoryName:'Left',score:.99}]] };
   }};
@@ -44,8 +44,12 @@ async function calibrate(page: Page) {
   ).toBeVisible();
   await delta(page, -2);
   await expect(
-    page.getByRole('button', { name: 'Mulai nge-67' }),
-  ).toBeEnabled();
+    page
+      .getByRole('complementary')
+      .getByText(
+        'Kalibrasi beres. Klik Mulai, lalu balikin tangan lu ke kamera.',
+      ),
+  ).toBeVisible();
 }
 async function start(page: Page) {
   await page.getByRole('button', { name: 'Mulai nge-67' }).click();
@@ -97,7 +101,8 @@ test('synthetic landmarks exercise calibration, full-cycle scoring, solo record 
   await page.getByRole('button', { name: 'Main lagi', exact: true }).click();
   await expect(
     page.getByRole('button', { name: 'Mulai nge-67' }),
-  ).toBeDisabled();
+  ).toBeEnabled();
+  await expect(page.locator('.auto-start-note')).toHaveCount(0);
   expect(
     await page.evaluate(
       () => (window as unknown as { __modelLoads: number }).__modelLoads,
@@ -124,7 +129,8 @@ test('duel switches players, recalibrates, compares results and rematches', asyn
   await page.getByRole('button', { name: 'Siap', exact: true }).click();
   await expect(
     page.getByRole('button', { name: 'Mulai nge-67' }),
-  ).toBeDisabled();
+  ).toBeEnabled();
+  await expect(page.locator('.auto-start-note')).toHaveCount(0);
   await calibrate(page);
   await start(page);
   await finish(page);
@@ -140,7 +146,8 @@ test('duel switches players, recalibrates, compares results and rematches', asyn
   await expect(page.locator('.session-mode')).toContainText('Giliran Dara');
   await expect(
     page.getByRole('button', { name: 'Mulai nge-67' }),
-  ).toBeDisabled();
+  ).toBeEnabled();
+  await expect(page.locator('.auto-start-note')).toHaveCount(0);
 });
 
 test('tab inactivity cancels a round without storing a record', async ({
@@ -211,4 +218,74 @@ test('equal scores produce a draw', async ({ page }) => {
   await expect(
     page.getByRole('heading', { name: 'Seri. Rematch?' }),
   ).toBeVisible();
+});
+
+test('a start click works with no hands visible and countdown waits until hands return', async ({
+  page,
+}) => {
+  await fixture(page);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Aktifkan Kamera' }).click();
+  await calibrate(page);
+  await page.evaluate(() => {
+    (window as unknown as { __noHands: boolean }).__noHands = true;
+  });
+  await expect(page.getByText('0/2 tangan', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Mulai nge-67' }).click();
+  await expect(
+    page.getByRole('button', { name: 'Batal mulai otomatis' }),
+  ).toBeEnabled();
+  await page.clock.fastForward(4000);
+  await expect(page.locator('.countdown-overlay')).toHaveCount(0);
+  await expect(page.locator('.auto-start-note')).toBeVisible();
+  await page.screenshot({
+    path: '.local/start-without-hands.png',
+    fullPage: true,
+  });
+  await page.evaluate(() => {
+    (window as unknown as { __noHands: boolean }).__noHands = false;
+  });
+  await expect(page.locator('.countdown-overlay')).toBeVisible();
+  await page.clock.fastForward(3100);
+  await expect(page.locator('.live-score')).toHaveText('0siklus valid');
+});
+
+test('start can be armed before calibration and cancelled without starting a round', async ({
+  page,
+}) => {
+  await fixture(page);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Aktifkan Kamera' }).click();
+  await expect(
+    page.getByRole('button', { name: 'Mulai nge-67' }),
+  ).toBeEnabled();
+  await page.getByRole('button', { name: 'Mulai nge-67' }).click();
+  await expect(page.locator('.auto-start-note')).toBeVisible();
+  await page.getByRole('button', { name: 'Batal mulai otomatis' }).click();
+  await calibrate(page);
+  await expect(page.locator('.countdown-overlay')).toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: 'Mulai nge-67' }),
+  ).toBeEnabled();
+});
+
+test('smooth alternating hands count without holding the extremes', async ({
+  page,
+}) => {
+  await fixture(page);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Aktifkan Kamera' }).click();
+  await calibrate(page);
+  await start(page);
+  await page.evaluate(() => {
+    (window as unknown as { __waveStart: number }).__waveStart =
+      performance.now();
+  });
+  await expect(page.locator('.live-score')).toHaveText('5siklus valid', {
+    timeout: 6000,
+  });
+  await page.screenshot({
+    path: '.local/smooth-motion-score.png',
+    fullPage: true,
+  });
 });

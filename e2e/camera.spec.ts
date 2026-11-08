@@ -99,7 +99,7 @@ test('real model initializes on a synthetic camera and exit stops camera tracks'
   await page.screenshot({ path: '.local/camera-desktop.png', fullPage: true });
   await expect(
     page.getByRole('button', { name: 'Mulai nge-67' }),
-  ).toBeDisabled();
+  ).toBeEnabled();
   await page.getByRole('button', { name: 'Keluar', exact: true }).click();
   await expect
     .poll(() =>

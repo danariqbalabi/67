@@ -81,13 +81,19 @@ export function CameraPanel({ mode, names, onExit }: Props) {
   }, [status.phase, round.cancel]);
   const instruction =
     phase === 'preparing'
-      ? status.handCount === 2
-        ? round.calibration.message
-        : status.message
+      ? status.phase !== 'ready'
+        ? status.message
+        : !round.tracking.valid
+          ? round.tracking.reason
+          : round.calibration.stage !== 'ready'
+            ? round.calibration.message
+            : round.startRequested
+              ? 'Dua tangan siap. Countdown mulai otomatis sebentar lagi.'
+              : 'Kalibrasi beres. Klik Mulai, lalu balikin tangan lu ke kamera.'
       : phase === 'playing'
-        ? status.handCount === 2
+        ? round.tracking.valid
           ? round.motion.reason || 'Naik-turun. Gantian. Gas!'
-          : 'Tangan lu keluar frame. Timer tetap jalan.'
+          : `${round.tracking.reason} Timer tetap jalan.`
         : phase === 'countdown'
           ? 'Siap nge-67?'
           : 'Ronde selesai.';
@@ -143,7 +149,7 @@ export function CameraPanel({ mode, names, onExit }: Props) {
         </h1>
         <p>
           {phase === 'preparing'
-            ? 'Kalibrasi sebentar. Setelah itu, 30 detik buat pecahin rekor.'
+            ? 'Klik Mulai dulu. Siapkan dua tangan, ikuti kalibrasi, lalu countdown otomatis.'
             : 'Satu pola bolak-balik lengkap = satu poin.'}
         </p>
       </div>
@@ -204,6 +210,24 @@ export function CameraPanel({ mode, names, onExit }: Props) {
                 <span />
                 <span />
                 <span />
+              </div>
+            )}
+            {status.phase === 'ready' && !complete && phase !== 'countdown' && (
+              <div className="motion-preview">
+                <strong>
+                  {!round.tracking.valid
+                    ? 'Telapak belum siap'
+                    : round.tracking.state === 'A'
+                      ? 'Kiri lebih tinggi'
+                      : round.tracking.state === 'B'
+                        ? 'Kanan lebih tinggi'
+                        : 'Tangan sejajar'}
+                </strong>
+                <span>
+                  {phase === 'playing'
+                    ? 'Ronde aktif · siklus lengkap = +1'
+                    : 'Persiapan · skor belum dihitung'}
+                </span>
               </div>
             )}
             {phase === 'countdown' && (
@@ -405,9 +429,9 @@ export function CameraPanel({ mode, names, onExit }: Props) {
                 </li>
                 <li>
                   <span
-                    className={status.handCount === 2 ? 'check ready' : 'check'}
+                    className={round.tracking.valid ? 'check ready' : 'check'}
                   >
-                    {status.handCount === 2 ? <Check size={13} /> : '2'}
+                    {round.tracking.valid ? <Check size={13} /> : '2'}
                   </span>
                   Dua tangan masuk frame
                 </li>
@@ -434,21 +458,29 @@ export function CameraPanel({ mode, names, onExit }: Props) {
                 />
               </div>
               <p className="tracking-hint">{instruction}</p>
+              {round.startRequested && (
+                <p className="auto-start-note" role="status">
+                  Mulai otomatis aktif. Lu nggak perlu pencet tombol lagi.
+                </p>
+              )}
               <button
                 className="primary-button"
-                disabled={
-                  !round.canStart ||
-                  status.phase !== 'ready' ||
-                  phase !== 'preparing'
-                }
+                disabled={status.phase !== 'ready' || phase !== 'preparing'}
                 onClick={() => {
-                  round.start();
+                  if (round.startRequested) round.cancelStart();
+                  else round.start();
                   audio.unlock();
                 }}
               >
                 <Play size={17} />
-                Mulai nge-67
+                {round.startRequested ? 'Batal mulai otomatis' : 'Mulai nge-67'}
               </button>
+              {!round.startRequested && (
+                <p className="start-help">
+                  Boleh klik saat tangan belum di frame. Countdown baru jalan
+                  setelah dua tangan dan kalibrasi siap.
+                </p>
+              )}
               {phase === 'preparing' && round.calibration.stage === 'ready' && (
                 <button className="text-button" onClick={restart}>
                   Kalibrasi ulang
@@ -497,11 +529,20 @@ export function CameraPanel({ mode, names, onExit }: Props) {
             </div>
             <div>
               <dt>Selisih normalisasi</dt>
-              <dd>{round.motion.delta.toFixed(3)}</dd>
+              <dd>
+                {(phase === 'playing'
+                  ? round.motion.delta
+                  : round.tracking.delta
+                ).toFixed(3)}
+              </dd>
             </div>
             <div>
               <dt>State</dt>
-              <dd>{round.motion.state}</dd>
+              <dd>
+                {phase === 'playing'
+                  ? round.motion.state
+                  : round.tracking.state}
+              </dd>
             </div>
             <div>
               <dt>Tahap siklus</dt>
@@ -509,7 +550,12 @@ export function CameraPanel({ mode, names, onExit }: Props) {
             </div>
             <div>
               <dt>Threshold aktif</dt>
-              <dd>{round.motion.threshold.toFixed(3)}</dd>
+              <dd>
+                {(phase === 'preparing'
+                  ? round.calibration.threshold
+                  : round.motion.threshold
+                ).toFixed(3)}
+              </dd>
             </div>
             <div>
               <dt>Kalibrasi</dt>

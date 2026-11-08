@@ -574,6 +574,40 @@ button:disabled:hover {
   align-items: center;
   font-size: 11px;
 }
+.motion-preview {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  max-width: calc(100% - 32px);
+  display: grid;
+  gap: 3px;
+  padding: 10px 13px;
+  background: #fffffff2;
+  border-radius: 12px;
+  pointer-events: none;
+}
+.motion-preview strong {
+  font-size: 11px;
+  font-weight: 500;
+}
+.motion-preview span {
+  font-size: 9px;
+  color: var(--muted);
+}
+.auto-start-note {
+  background: var(--success);
+  color: #166243;
+  padding: 12px;
+  border-radius: 12px;
+  font-size: 11px;
+  line-height: 1.8;
+}
+.start-help {
+  font-size: 10px;
+  color: var(--muted);
+  line-height: 1.8;
+  margin: 16px 0 0;
+}
 .camera-caption > svg {
   color: var(--primary-dark);
   flex-shrink: 0;

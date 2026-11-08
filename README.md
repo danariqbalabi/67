@@ -35,9 +35,9 @@ Untuk hosting, unggah seluruh isi `dist/`, termasuk `vision/`, lewat HTTPS. Proy
 
 1. Pilih **Solo** atau **Adu Temen**. Adu Temen meminta dua nama, maksimum 24 karakter.
 2. Klik **Aktifkan Kamera**. Izin kamera hanya diminta setelah interaksi ini.
-3. Masukkan dua tangan ke frame. Preview dan skeleton ditampilkan seperti cermin.
+3. Begitu model siap, klik **Mulai nge-67**. Tombol tetap bisa diklik meski tangan sedang di mouse atau belum di frame. Ini mengaktifkan permintaan mulai otomatis; **Batal mulai otomatis** membatalkannya.
 4. Kalibrasi: tahan tangan sejajar selama 1,2 detik, lalu kiri layar lebih tinggi, lalu kanan layar lebih tinggi. Ikuti instruksi di samping kamera.
-5. Setelah model, tracking, dan kalibrasi siap, klik **Mulai nge-67**. Countdown 3–2–1 dilanjutkan ronde 30 detik.
+5. Kembalikan dua telapak ke frame. Setelah kalibrasi selesai dan dua telapak terbaca selama 600 ms, countdown 3–2–1 berjalan otomatis, dilanjutkan ronde 30 detik. Tidak perlu menekan tombol lagi. Kalau tangan hilang saat menunggu, aplikasi menunggu tangan kembali; waktu ronde belum terpakai.
 6. **Keluar** mematikan kamera dan melepas model. **Hentikan ronde** membatalkan hasil. **Main lagi** mengulang kalibrasi.
 
 Satu poin adalah **satu siklus penuh**:
@@ -67,9 +67,9 @@ src/styles.css  design token pastel, Poppins, layout responsif
 e2e/            browser test dengan kamera/landmark sintetis
 ```
 
-`HandIdentity` memakai pusat telapak dari landmark **0/5/9/13/17**, bukan ujung jari. Ukuran telapak dihitung dari pergelangan ke pangkal jari tengah. Koordinat x diubah menjadi sisi layar yang dicerminkan dan dikoreksi rasio aspek agar jarak x/y memakai satuan tinggi video yang sama. Identitas antarframe dicocokkan dari kedekatan posisi, bukan urutan array deteksi. Tangan bersilangan, bertumpuk, atau meloncat jauh dianggap ambigu dan memutus kontinuitas.
+`HandIdentity` memakai pusat telapak dari landmark **0/5/9/13/17**, bukan ujung jari. Ukuran telapak memakai nilai terbesar antara jarak pergelangan–pangkal jari tengah dan lebar pangkal telunjuk–kelingking, sehingga telapak miring/menghadap atas tidak langsung dianggap terlalu kecil. Ujung jari boleh sedikit keluar frame selama jangkar telapak masih terlihat dan semua koordinat finite. Koordinat x diubah menjadi sisi layar yang dicerminkan dan dikoreksi rasio aspek agar jarak x/y memakai satuan tinggi video yang sama. Identitas antarframe dicocokkan dari kedekatan posisi, bukan urutan array deteksi. Gerak vertikal diberi bobot lebih kecil dalam pencocokan agar naik-turun tidak menukar identitas dua tangan yang berdekatan. Tangan bersilangan, bertumpuk, atau meloncat jauh tetap dianggap ambigu dan memutus kontinuitas.
 
-`Calibration` mencatat median ukuran telapak pada posisi stabil dan mengukur rentang dua arah. Threshold awal dihitung dari 55% rentang yang lebih kecil, dibatasi 0,65–1,15 satuan telapak. Saat menghitung, selisih tinggi dibagi rata-rata ukuran telapak saat itu supaya jarak kamera tidak menjadi threshold piksel tetap.
+`Calibration` mencatat median ukuran telapak pada posisi stabil dan mengukur rentang dua arah. Threshold awal dihitung dari 45% rentang yang lebih kecil, dibatasi 0,45–0,8 satuan telapak. Saat menghitung, selisih tinggi dibagi rata-rata ukuran telapak saat itu supaya jarak kamera tidak menjadi threshold piksel tetap. Smoothing 45 ms dan durasi stabil 60 ms menerima gerakan naik-turun mulus tanpa harus berhenti di setiap puncak; penolakan jitter dan siklus parsial tetap diuji.
 
 `CycleCounter` memakai smoothing eksponensial berbasis waktu, zona netral, hysteresis, durasi stabil minimum, dan minimum waktu perpindahan. State machine memvalidasi satu pola bolak-balik lengkap. Tracking hilang/jeda panjang/timestamp tidak valid membatalkan progres parsial tanpa menghapus poin yang sudah sah.
 
@@ -77,15 +77,16 @@ Parameter ada di **`src/motion/config.ts`**:
 
 | Parameter             |           Default | Pengaruh                                            |
 | --------------------- | ----------------: | --------------------------------------------------- |
-| `smoothingMs`         |             70 ms | Lebih besar meredam jitter, tetapi menambah latensi |
-| `enterThreshold`      |       0,8 telapak | Threshold awal sebelum hasil kalibrasi              |
+| `smoothingMs`         |             45 ms | Lebih besar meredam jitter, tetapi menambah latensi |
+| `enterThreshold`      |      0,65 telapak | Threshold awal sebelum hasil kalibrasi              |
 | `exitRatio`           |              0,58 | Batas keluar A/B relatif terhadap threshold masuk   |
-| `stableMs`            |            100 ms | Lama posisi harus bertahan sebelum diterima         |
+| `stableMs`            |             60 ms | Lama posisi harus bertahan sebelum diterima         |
 | `minTransitionMs`     |            180 ms | Menolak pergantian yang terlalu cepat               |
 | `maxFrameGapMs`       |            300 ms | Jeda yang memutus siklus parsial                    |
 | `maxIdentityJump`     | 0,35 tinggi video | Batas lonjakan identitas antarframe                 |
 | `calibrationHoldMs`   |           1200 ms | Waktu tangan sejajar stabil                         |
-| `calibrationMinRange` |       0,9 telapak | Rentang minimum untuk tahap gerakan kalibrasi       |
+| `calibrationMinRange` |      0,65 telapak | Rentang minimum untuk tahap gerakan kalibrasi       |
+| `startHoldMs`         |            600 ms | Dua telapak terbaca sebelum countdown otomatis      |
 | `roundMs`             |          30000 ms | Durasi ronde kedua mode                             |
 
 Threshold confidence detection/presence/tracking MediaPipe diatur **0,6** pada `src/tracking/useCamera.ts`. API hasil menyediakan confidence klasifikasi **Left/Right**, bukan confidence landmark individual; debug memberi label sesuai makna tersebut.
@@ -96,7 +97,9 @@ Model dimuat sekali per sesi kamera, dipertahankan lintas ronde dan giliran, lal
 
 ## Debug dan pemulihan
 
-Klik **Debug** untuk membuka panel yang tersembunyi secara default: inference FPS, jumlah tangan, delegate, confidence handedness, selisih tinggi ternormalisasi, state A/B/netral, tahap siklus, threshold, tahap kalibrasi, ukuran telapak, serta alasan penolakan/reset. State penghitung hanya aktif saat ronde bermain.
+Di atas kamera ada indikator posisi kiri/kanan/sejajar dan label **Persiapan · skor belum dihitung** atau **Ronde aktif**. Skeleton menunjukkan hasil model, tetapi belum menjamin telapak lolos validasi. Alasan penolakan telapak ditampilkan langsung di instruksi. Skor hanya dihitung saat ronde aktif.
+
+Klik **Debug** untuk membuka panel yang tersembunyi secara default: inference FPS, jumlah tangan, delegate, confidence handedness, selisih tinggi ternormalisasi, state A/B/netral, tahap siklus, threshold, tahap kalibrasi, ukuran telapak, serta alasan penolakan/reset. Saat persiapan, selisih/state menampilkan posisi mentah untuk mengecek gerakan tanpa menambah poin; saat bermain, panel menampilkan sinyal yang sudah di-smoothing dan state penghitung.
 
 Izin ditolak, kamera tidak ditemukan/sedang dipakai/terputus, fitur browser tidak tersedia, model gagal, tracking hilang, dan FPS rendah memiliki pesan atau petunjuk pemulihan. Model gagal tidak diganti skor acak. Untuk izin ditolak, izinkan kamera lewat address bar. Untuk kamera sibuk, tutup aplikasi pemakai webcam. Untuk model gagal, jalankan `npm run setup:vision` dan coba lagi.
 
@@ -113,8 +116,8 @@ npm run test:e2e
 
 Hasil verifikasi pengembangan:
 
-- **19 unit test sintetis:** diam, jitter, A → B parsial, kedua arah siklus lengkap, siklus beruntun, neutral, spike, tracking hilang, jeda panjang, identitas/urutan array, gerakan di luar ronde, kalibrasi, deadline timer, pembatalan, dan konsistensi pada 15/30/60 FPS.
-- **11 browser test Chromium:** halaman awal tanpa kamera otomatis, layout mobile, izin ditolak dan retry, model asli pada video kamera sintetis, cleanup track, kamera tidak tersedia/sibuk, kegagalan model, solo/rekor/replay, duel/pergantian/kalibrasi/rematch, seri, tracking hilang dengan timer berjalan, serta pembatalan saat tab tidak aktif. Beberapa pemeriksaan digabung dalam satu test.
+- **30 unit test sintetis:** diam, jitter, A → B parsial, kedua arah siklus lengkap, siklus beruntun, neutral, spike, tracking hilang, jeda panjang, identitas/urutan array, gerakan di luar ronde, kalibrasi, deadline timer, pembatalan, konsistensi FPS, gerakan sinus mulus pada 15/20/24/30 FPS, ujung jari keluar frame, telapak miring, identitas tangan berdekatan, start tanpa tangan di frame, pembatalan permintaan start, dan kesiapan setelah tangan kembali.
+- **14 browser test Chromium:** halaman awal tanpa kamera otomatis, layout mobile, izin ditolak dan retry, model asli pada video kamera sintetis, cleanup track, kamera tidak tersedia/sibuk, kegagalan model, solo/rekor/replay, duel/pergantian/kalibrasi/rematch, seri, tracking hilang dengan timer berjalan, pembatalan saat tab tidak aktif, klik Mulai saat 0/2 tangan, permintaan Mulai sebelum kalibrasi, pembatalannya, dan penghitungan gerakan mulus tanpa menahan posisi. Beberapa pemeriksaan digabung dalam satu test.
 - Instalasi `npm ci` dan build berhasil dari salinan bersih di `.local/verify-install`, termasuk unduhan dan checksum model.
 - Screenshot desktop, mobile, kamera, dan hasil diperiksa secara visual. Aset/screenshot/hasil build tidak di-commit.
 
