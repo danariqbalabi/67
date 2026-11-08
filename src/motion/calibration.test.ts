@@ -14,7 +14,7 @@ it('requires stable palms and both alternating poses before becoming ready', () 
   expect(c.snapshot().stage).toBe('right');
   for (let t = 1840; t <= 2200; t += 40) c.update(t, pair(-2));
   expect(c.snapshot().stage).toBe('ready');
-  expect(c.snapshot().threshold).toBeCloseTo(1.1);
+  expect(c.snapshot().threshold).toBeCloseTo(0.8);
   expect(c.snapshot().palmSize).toBeCloseTo(0.1);
 });
 

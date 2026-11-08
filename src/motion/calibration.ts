@@ -107,8 +107,12 @@ export class Calibration {
           } else {
             this.rightRange = -delta;
             this.threshold = Math.max(
-              0.65,
-              Math.min(1.15, Math.min(this.leftRange, this.rightRange) * 0.55),
+              MOTION_CONFIG.calibrationThresholdMin,
+              Math.min(
+                MOTION_CONFIG.calibrationThresholdMax,
+                Math.min(this.leftRange, this.rightRange) *
+                  MOTION_CONFIG.calibrationThresholdRatio,
+              ),
             );
             this.stage = 'ready';
             this.progress = 1;
